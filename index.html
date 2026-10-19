@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>療癒打地鼠</title>
+<style>
+  :root {
+    --sky: #BFE6EE;
+    --sky-low: #E6F5E8;
+    --grass: #7DBA45;
+    --grass-dark: #4F8F2F;
+    --soil: #7B4A2A;
+    --soil-dark: #53311B;
+    --soil-light: #9A6038;
+    --ink: #3F2A1A;
+    --sun: #FFC933;
+    --sun-dark: #D9A000;
+    --panel: rgba(255, 252, 240, .94);
+    --good: #2E8B3D;
+    --bad: #D63C3C;
+    --font: "Hiragino Maru Gothic ProN", "jf-openhuninn", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-weight: 700;
+    color: var(--ink);
+    background: linear-gradient(to bottom, var(--sky) 0%, var(--sky-low) 42%, var(--grass) 42%, var(--grass-dark) 100%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 背景：太陽與起伏的草地 */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 5vh; right: 8vw;
+    width: clamp(56px, 11vw, 110px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #FFE27A;
+    box-shadow: 0 0 0 12px rgba(255, 226, 122, .35);
+    z-index: 0;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    left: -25%; right: -25%;
+    bottom: -42vh;
+    height: 85vh;
+    border-radius: 50%;
+    background: var(--grass);
+    z-index: 0;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 1;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+
+  /* 面板（開始、結束） */
+  .panel {
+    width: min(100%, 440px);
+    padding: 28px 24px 26px;
+    text-align: center;
+    background: var(--panel);
+    border: 4px solid var(--soil);
+    border-radius: 30px;
+    box-shadow: 0 8px 0 var(--soil-dark);
+  }
+  h1 {
+    margin: 6px 0 4px;
+    font-size: clamp(2.3rem, 10vw, 3.4rem);
+    font-weight: 900;
+    letter-spacing: .06em;
+    color: var(--soil-dark);
+    text-shadow: 0 3px 0 #fff;
+  }
+  h2 {
+    margin: 0 0 6px;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--soil-dark);
+  }
+  .lead { margin: 0 0 18px; font-size: 1.05rem; }
+
+  .rules {
+    list-style: none;
+    margin: 0 auto 18px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+    text-align: left;
+    background: rgba(125, 186, 69, .18);
+    border-radius: 18px;
+  }
+  .rules li { display: flex; align-items: center; gap: 12px; font-size: 1rem; }
+  .rules .icon { width: 38px; height: 38px; flex: none; }
+  .rules .icon svg { width: 100%; height: 100%; display: block; }
+  .rules b { font-weight: 900; }
+  .plus { color: var(--good); }
+  .minus { color: var(--bad); }
+
+  .best-line { margin: 0 0 18px; font-size: 1.05rem; }
+  .best-line strong { font-size: 1.4rem; font-weight: 900; }
+
+  .btn {
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+    padding: 12px 34px;
+    color: var(--soil-dark);
+    background: var(--sun);
+    border: 4px solid var(--soil);
+    border-radius: 999px;
+    box-shadow: 0 6px 0 var(--sun-dark), 0 6px 0 4px var(--soil);
+    cursor: pointer;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--sun-dark), 0 1px 0 4px var(--soil); }
+  .btn:focus-visible, .hole:focus-visible .ring { outline: 4px solid #fff; outline-offset: 3px; }
+
+  /* 開始畫面的地鼠 */
+  .hero {
+    position: relative;
+    width: 150px;
+    height: 128px;
+    margin: -8px auto 0;
+    overflow: hidden;
+  }
+  .hero svg {
+    position: absolute;
+    left: 50%; bottom: -6px;
+    width: 128px;
+    transform: translateX(-50%);
+    animation: heroPop .7s cubic-bezier(.2, 1.4, .4, 1) .15s backwards;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 30px;
+    border-radius: 0 0 60px 60px / 0 0 40px 40px;
+    background: var(--soil-light);
+  }
+  @keyframes heroPop { from { transform: translate(-50%, 110%); } }
+
+  /* 遊戲畫面 */
+  .play { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .hud, .board { width: min(100%, 520px, max(260px, calc(100dvh - 210px))); }
+
+  .hud { display: grid; gap: 10px; }
+  .hud-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile {
+    padding: 6px 8px 8px;
+    text-align: center;
+    color: #FFF3D6;
+    background: var(--soil);
+    border: 3px solid var(--soil-dark);
+    border-radius: 16px;
+    box-shadow: 0 4px 0 var(--soil-dark);
+  }
+  .tile .label { display: block; font-size: .8rem; opacity: .85; }
+  .tile .value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+  .tile .value.bump { animation: bump .25s; }
+  @keyframes bump { 50% { transform: scale(1.25); } }
+
+  .timebar {
+    height: 14px;
+    background: rgba(63, 42, 26, .28);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .timebar span {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: var(--sun);
+    border-radius: 999px;
+    transition: width .1s linear, background-color .3s;
+  }
+  .urgent .timebar span { background: var(--bad); }
+  .urgent #timeValue { color: #FFB4A8; }
+
+  /* 地洞 */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2%;
+    padding: 3%;
+    background: var(--grass-dark);
+    border: 4px solid var(--soil-dark);
+    border-radius: 26px;
+    box-shadow: 0 8px 0 var(--soil-dark);
+    position: relative;
+    touch-action: manipulation;
+  }
+  .board.shake { animation: shake .4s; }
+  .board.flash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: rgba(255, 90, 60, .35);
+    pointer-events: none;
+    z-index: 8;
+    animation: flash .4s forwards;
+  }
+  @keyframes shake {
+    20% { transform: translate(-7px, 2px); }
+    40% { transform: translate(6px, -3px); }
+    60% { transform: translate(-5px, 2px); }
+    80% { transform: translate(3px, -1px); }
+  }
+  @keyframes flash { to { opacity: 0; } }
+
+  .hole {
+    position: relative;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .hole .ring, .hole .back, .hole .lip, .hole .clip { position: absolute; display: block; }
+  .hole .ring {
+    left: 0; right: 0; bottom: 2%;
+    height: 40%;
+    border-radius: 50%;
+    background: linear-gradient(var(--soil-light), var(--soil));
+    z-index: 1;
+  }
+  .hole .back {
+    left: 7%; right: 7%; bottom: 7%;
+    height: 30%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 60%, #1E0F06, #46281A);
+    z-index: 2;
+  }
+  .hole .clip {
+    left: 0; right: 0; top: 0;
+    bottom: 22%;
+    overflow: hidden;
+    z-index: 3;
+  }
+  .hole .lip {
+    left: 1%; right: 1%; bottom: 2%;
+    height: 22%;
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+    background: linear-gradient(var(--soil-light), var(--soil));
+    z-index: 4;
+  }
+  .critter {
+    position: absolute;
+    left: 50%; bottom: 0;
+    width: 80%;
+    transform: translate(-50%, 105%);
+    transform-origin: 50% 100%;
+    transition: transform .16s ease-out;
+    pointer-events: none;
+  }
+  .critter svg { display: block; width: 100%; }
+  .hole.up .critter { transform: translate(-50%, 0); }
+  .hole.hit .critter { transform: translate(-50%, 14%) scale(1.12, .8); transition-duration: .06s; }
+
+  .eyes-x { display: none; }
+  .hole.hit .eyes-open { display: none; }
+  .hole.hit .eyes-x { display: inline; }
+  .spark { transform-box: fill-box; transform-origin: center; animation: spark .3s infinite alternate; }
+  @keyframes spark { to { transform: scale(1.35); opacity: .75; } }
+
+  .pop {
+    position: absolute;
+    left: 50%; top: 4%;
+    z-index: 6;
+    font-size: clamp(1.4rem, 6vw, 2.2rem);
+    font-weight: 900;
+    pointer-events: none;
+    -webkit-text-stroke: 4px #fff;
+    paint-order: stroke fill;
+    animation: rise .85s ease-out forwards;
+  }
+  .pop.plus { color: var(--good); }
+  .pop.minus { color: var(--bad); }
+  @keyframes rise {
+    from { transform: translate(-50%, 10px) scale(.7); opacity: 1; }
+    25%  { transform: translate(-50%, -12px) scale(1.15); }
+    to   { transform: translate(-50%, -52px) scale(1); opacity: 0; }
+  }
+  .fx {
+    position: absolute;
+    left: 50%; top: 18%;
+    z-index: 5;
+    font-size: clamp(2rem, 9vw, 3.4rem);
+    pointer-events: none;
+    transform: translateX(-50%);
+    animation: burst .45s ease-out forwards;
+  }
+  @keyframes burst {
+    from { transform: translateX(-50%) scale(.4); opacity: 1; }
+    to   { transform: translateX(-50%) scale(1.5); opacity: 0; }
+  }
+
+  /* 木槌游標 */
+  .hammer {
+    position: fixed;
+    left: 0; top: 0;
+    width: 96px; height: 96px;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform;
+  }
+  .hammer.on { opacity: 1; }
+  .hammer-in {
+    width: 100%; height: 100%;
+    transform-origin: 50% 92%;
+    transform: rotate(-30deg);
+  }
+  .hammer-in svg { display: block; width: 100%; height: 100%; }
+  .hammer.swing .hammer-in { animation: swing .22s ease-out; }
+  @keyframes swing {
+    0%   { transform: rotate(-30deg); }
+    35%  { transform: rotate(8deg); }
+    100% { transform: rotate(-30deg); }
+  }
+  @media (pointer: fine) { .play .board, .play .board .hole { cursor: none; } }
+
+  .new-record {
+    display: inline-block;
+    margin: 0 0 14px;
+    padding: 4px 16px;
+    font-weight: 900;
+    color: var(--soil-dark);
+    background: var(--sun);
+    border: 3px solid var(--soil);
+    border-radius: 999px;
+    animation: bump .5s 2;
+  }
+  .final-score { margin: 0 0 6px; font-size: 1rem; }
+  .final-score strong { display: block; font-size: 3.6rem; font-weight: 900; line-height: 1.1; color: var(--soil-dark); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .board.shake, .hero svg, .spark, .new-record, .tile .value.bump { animation: none; }
+    .critter { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main class="stage">
+
+  <!-- 開始畫面 -->
+  <section class="panel" id="screenStart">
+    <div class="hero" id="hero"></div>
+    <h1>療癒打地鼠</h1>
+    <p class="lead">30 秒內敲中地鼠，小心別碰到炸彈。</p>
+    <ul class="rules">
+      <li><span class="icon" data-icon="mole"></span><span>敲中地鼠 <b class="plus">+10 分</b></span></li>
+      <li><span class="icon" data-icon="bomb"></span><span>敲到炸彈 <b class="minus">−15 分</b></span></li>
+      <li><span class="icon" aria-hidden="true" style="font-size:1.8rem;text-align:center">⏱️</span><span>時間越久，出現得越快</span></li>
+    </ul>
+    <p class="best-line">目前最高分　<strong id="bestStart">0</strong></p>
+    <button class="btn" id="btnStart" type="button">開始遊戲</button>
+  </section>
+
+  <!-- 遊戲畫面 -->
+  <section class="play" id="screenPlay" hidden>
+    <div class="hud" id="hud">
+      <div class="hud-row">
+        <div class="tile"><span class="label">分數</span><span class="value" id="scoreValue">0</span></div>
+        <div class="tile"><span class="label">時間</span><span class="value" id="timeValue">30</span></div>
+        <div class="tile"><span class="label">最高分</span><span class="value" id="bestValue">0</span></div>
+      </div>
+      <div class="timebar" aria-hidden="true"><span id="timeFill"></span></div>
+    </div>
+    <div class="board" id="board" role="group" aria-label="地洞"></div>
+  </section>
+
+  <!-- 結束畫面 -->
+  <section class="panel" id="screenOver" hidden>
+    <h2>時間到！</h2>
+    <p class="final-score">本局分數<strong id="finalScore">0</strong></p>
+    <div class="new-record" id="newRecord" hidden>刷新最高分！</div>
+    <p class="best-line">最高分　<strong id="bestOver">0</strong></p>
+    <button class="btn" id="btnAgain" type="button">再玩一次</button>
+  </section>
+
+</main>
+
+<div class="hammer" id="hammer" aria-hidden="true">
+  <div class="hammer-in">
+    <svg viewBox="0 0 100 100">
+      <rect x="44" y="30" width="12" height="64" rx="6" fill="#C98F58" stroke="#7B4A2A" stroke-width="3"/>
+      <rect x="14" y="12" width="72" height="34" rx="10" fill="#E2A864" stroke="#7B4A2A" stroke-width="3"/>
+      <rect x="14" y="12" width="14" height="34" rx="7" fill="#B7743F" stroke="#7B4A2A" stroke-width="3"/>
+      <rect x="72" y="12" width="14" height="34" rx="7" fill="#B7743F" stroke="#7B4A2A" stroke-width="3"/>
+    </svg>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ===== 規格參數（對應規格書「核心規則」與「難度曲線」） ===== */
+  const CONFIG = {
+    gameSeconds: 30,          // 遊戲時間
+    moleScore: 10,            // 打中地鼠
+    bombScore: -15,           // 打中炸彈
+    minScore: 0,              // 分數下限
+    holeCount: 9,             // 3×3
+    firstSpawnDelay: 500,     // 開始後第一次出現的延遲（毫秒）
+    storageKey: 'whackAMole.bestScore',
+    // until：該階段結束的秒數；stay：每隻停留；gap：出現間隔；bombRate：炸彈機率；maxTargets：每次最多同時出現幾個
+    phases: [
+      { until: 10,       stay: 1200, gap: 1000, bombRate: 0.10, maxTargets: 1 },
+      { until: 20,       stay: 900,  gap: 700,  bombRate: 0.20, maxTargets: 1 },
+      { until: Infinity, stay: 600,  gap: 500,  bombRate: 0.30, maxTargets: 2 }
+    ]
+  };
+
+  /* ===== 圖像（內嵌 SVG，不需外部檔案） ===== */
+  const MOLE_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <ellipse cx="50" cy="62" rx="36" ry="38" fill="#9B6B45"/>
+    <circle cx="22" cy="30" r="9" fill="#9B6B45"/><circle cx="22" cy="30" r="4.5" fill="#F0A8A0"/>
+    <circle cx="78" cy="30" r="9" fill="#9B6B45"/><circle cx="78" cy="30" r="4.5" fill="#F0A8A0"/>
+    <ellipse cx="50" cy="66" rx="17" ry="13" fill="#F6C7BC"/>
+    <ellipse cx="50" cy="58" rx="7" ry="5" fill="#4A2C19"/>
+    <g class="eyes-open">
+      <circle cx="35" cy="46" r="5" fill="#2A1A10"/><circle cx="65" cy="46" r="5" fill="#2A1A10"/>
+      <circle cx="36.8" cy="44.2" r="1.7" fill="#fff"/><circle cx="66.8" cy="44.2" r="1.7" fill="#fff"/>
+    </g>
+    <g class="eyes-x"><path d="M30 41l10 10M40 41L30 51M60 41l10 10M70 41L60 51" stroke="#2A1A10" stroke-width="3.5" stroke-linecap="round" fill="none"/></g>
+    <circle cx="26" cy="60" r="5" fill="#F08A8A" opacity=".45"/><circle cx="74" cy="60" r="5" fill="#F08A8A" opacity=".45"/>
+    <rect x="45" y="72" width="10" height="9" rx="2" fill="#fff" stroke="#C9A58C" stroke-width="1"/>
+  </svg>`;
+
+  const BOMB_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M58 24C60 12 70 12 74 7" fill="none" stroke="#C9A66B" stroke-width="3.5" stroke-linecap="round"/>
+    <g class="spark"><circle cx="75" cy="7" r="5.5" fill="#FFC933"/><circle cx="75" cy="7" r="2.6" fill="#FF6B35"/></g>
+    <rect x="40" y="22" width="22" height="14" rx="4" fill="#5A5D78"/>
+    <circle cx="50" cy="64" r="34" fill="#2B2D42"/>
+    <ellipse cx="37" cy="48" rx="9" ry="5.5" fill="#fff" opacity=".22" transform="rotate(-30 37 48)"/>
+    <g class="eyes-open">
+      <circle cx="39" cy="66" r="5.5" fill="#fff"/><circle cx="61" cy="66" r="5.5" fill="#fff"/>
+      <circle cx="40.5" cy="67" r="2.6" fill="#2B2D42"/><circle cx="59.5" cy="67" r="2.6" fill="#2B2D42"/>
+      <path d="M32 55L46 61M68 55L54 61" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g class="eyes-x"><path d="M33 61l11 11M44 61L33 72M56 61l11 11M67 61L56 72" stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"/></g>
+    <path d="M41 83Q50 77 59 83" fill="none" stroke="#FF6B6B" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+
+  /* ===== 取得元素 ===== */
+  const $ = (id) => document.getElementById(id);
+  const screens = { start: $('screenStart'), play: $('screenPlay'), over: $('screenOver') };
+  const board = $('board');
+  const hud = $('hud');
+  const scoreEl = $('scoreValue');
+  const timeEl = $('timeValue');
+  const timeFill = $('timeFill');
+  const hammer = $('hammer');
+
+  /* 圖示與首頁地鼠 */
+  document.querySelectorAll('[data-icon]').forEach((el) => {
+    el.innerHTML = el.dataset.icon === 'mole' ? MOLE_SVG : BOMB_SVG;
+  });
+  $('hero').innerHTML = MOLE_SVG;
+
+  /* ===== 狀態 ===== */
+  let state = 'start';          // start | playing | over
+  let score = 0;
+  let best = loadBest();
+  let startAt = 0;
+  let spawnTimer = null;
+  let clockTimer = null;
+  let hammerHideTimer = null;
+
+  function loadBest() {
+    try {
+      const v = parseInt(localStorage.getItem(CONFIG.storageKey), 10);
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem(CONFIG.storageKey, String(v)); } catch (e) { /* 無法儲存時略過 */ }
+  }
+
+  function showScreen(name) {
+    Object.keys(screens).forEach((k) => { screens[k].hidden = (k !== name); });
+  }
+  function renderBest() {
+    $('bestStart').textContent = best;
+    $('bestValue').textContent = best;
+    $('bestOver').textContent = best;
+  }
+
+  /* ===== 建立地洞 ===== */
+  const holes = [];
+  for (let i = 0; i < CONFIG.holeCount; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hole';
+    btn.setAttribute('aria-label', '地洞 ' + (i + 1));
+    btn.innerHTML = '<span class="ring"></span><span class="back"></span>' +
+                    '<span class="clip"><span class="critter"></span></span><span class="lip"></span>';
+    const hole = { el: btn, critter: btn.querySelector('.critter'), target: null };
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); hit(hole); });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hit(hole); }
+    });
+    board.appendChild(btn);
+    holes.push(hole);
+  }
+
+  /* ===== 音效（Web Audio 合成，不需外部音檔） ===== */
+  let audio = null;
+  function ensureAudio() {
+    try {
+      if (!audio) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audio = new AC();
+      }
+      if (audio && audio.state === 'suspended') audio.resume();
+    } catch (e) { audio = null; }
+  }
+  function tone(freq, delay, dur, type, vol, freqEnd) {
+    if (!audio) return;
+    const t = audio.currentTime + delay;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+  function noise(dur, vol, cutoff) {
+    if (!audio) return;
+    const len = Math.floor(audio.sampleRate * dur);
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = audio.createBufferSource();
+    const filter = audio.createBiquadFilter();
+    const gain = audio.createGain();
+    src.buffer = buf;
+    filter.type = 'lowpass';
+    filter.frequency.value = cutoff;
+    gain.gain.value = vol;
+    src.connect(filter).connect(gain).connect(audio.destination);
+    src.start();
+  }
+  const sfx = {
+    mole() { tone(520, 0, 0.09, 'triangle', 0.25, 820); tone(820, 0.07, 0.12, 'triangle', 0.22, 1100); },
+    bomb() { noise(0.45, 0.5, 900); tone(150, 0, 0.4, 'sawtooth', 0.22, 40); },
+    end() {
+      [523, 659, 784].forEach((f, i) => tone(f, i * 0.14, 0.22, 'triangle', 0.25));
+      tone(1046, 0.45, 0.4, 'triangle', 0.25);
+    }
+  };
+
+  /* ===== 木槌游標 ===== */
+  function moveHammer(e) {
+    if (state !== 'playing') return;
+    hammer.style.transform = 'translate(' + (e.clientX - 47) + 'px,' + (e.clientY - 28) + 'px)';
+    if (e.pointerType !== 'touch') hammer.classList.add('on');
+  }
+  function swingHammer(e) {
+    moveHammer(e);
+    hammer.classList.add('on');
+    hammer.classList.remove('swing');
+    void hammer.offsetWidth;                 // 重新觸發動畫
+    hammer.classList.add('swing');
+    if (e.pointerType === 'touch') {
+      clearTimeout(hammerHideTimer);
+      hammerHideTimer = setTimeout(() => hammer.classList.remove('on'), 300);
+    }
+  }
+  screens.play.addEventListener('pointermove', moveHammer);
+  screens.play.addEventListener('pointerdown', swingHammer);
+  screens.play.addEventListener('pointerleave', () => hammer.classList.remove('on'));
+
+  /* ===== 遊戲流程 ===== */
+  function currentPhase() {
+    const sec = (performance.now() - startAt) / 1000;
+    return CONFIG.phases.find((p) => sec < p.until) || CONFIG.phases[CONFIG.phases.length - 1];
+  }
+
+  function popUp(hole, type, stay) {
+    const t = { type, hit: false, gone: false, timer: null };
+    hole.target = t;
+    hole.critter.innerHTML = type === 'mole' ? MOLE_SVG : BOMB_SVG;
+    hole.el.classList.remove('hit');
+    void hole.critter.offsetWidth;
+    hole.el.classList.add('up');
+    t.timer = setTimeout(() => retract(hole), stay);
+  }
+
+  function retract(hole) {
+    const t = hole.target;
+    if (!t || t.gone) return;
+    t.gone = true;
+    clearTimeout(t.timer);
+    hole.el.classList.remove('up');
+    setTimeout(() => {
+      if (hole.target === t) {
+        hole.target = null;
+        hole.critter.innerHTML = '';
+        hole.el.classList.remove('hit');
+      }
+    }, 220);
+  }
+
+  function clearHoles() {
+    holes.forEach((h) => {
+      if (h.target) clearTimeout(h.target.timer);
+      h.target = null;
+      h.critter.innerHTML = '';
+      h.el.classList.remove('up', 'hit');
+      h.el.querySelectorAll('.pop, .fx').forEach((n) => n.remove());
+    });
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function spawnTick() {
+    if (state !== 'playing') return;
+    const p = currentPhase();
+    const count = 1 + Math.floor(Math.random() * p.maxTargets);   // 1 ～ maxTargets 個
+    const free = shuffle(holes.filter((h) => !h.target));
+    for (let k = 0; k < Math.min(count, free.length); k++) {
+      popUp(free[k], Math.random() < p.bombRate ? 'bomb' : 'mole', p.stay);
+    }
+    spawnTimer = setTimeout(spawnTick, p.gap);
+  }
+
+  function floatText(hole, text, cls) {
+    const s = document.createElement('span');
+    s.className = 'pop ' + cls;
+    s.textContent = text;
+    hole.el.appendChild(s);
+    setTimeout(() => s.remove(), 900);
+  }
+  function burst(hole, emoji) {
+    const s = document.createElement('span');
+    s.className = 'fx';
+    s.textContent = emoji;
+    hole.el.appendChild(s);
+    setTimeout(() => s.remove(), 500);
+  }
+  function setScore(v) {
+    score = v;
+    scoreEl.textContent = score;
+    scoreEl.classList.remove('bump');
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add('bump');
+  }
+
+  function hit(hole) {
+    if (state !== 'playing') return;
+    const t = hole.target;
+    if (!t || t.hit || t.gone) return;            // 沒打中：不扣分
+    t.hit = true;
+    clearTimeout(t.timer);
+    hole.el.classList.add('hit');
+
+    if (t.type === 'mole') {
+      setScore(Math.max(CONFIG.minScore, score + CONFIG.moleScore));
+      floatText(hole, '+' + CONFIG.moleScore, 'plus');
+      burst(hole, '✨');
+      sfx.mole();
+    } else {
+      setScore(Math.max(CONFIG.minScore, score + CONFIG.bombScore));
+      floatText(hole, '−' + Math.abs(CONFIG.bombScore), 'minus');
+      burst(hole, '💥');
+      sfx.bomb();
+      board.classList.remove('shake', 'flash');
+      void board.offsetWidth;
+      board.classList.add('shake', 'flash');
+      setTimeout(() => board.classList.remove('shake', 'flash'), 450);
+    }
+    setTimeout(() => retract(hole), 380);
+  }
+
+  function updateClock() {
+    const elapsed = (performance.now() - startAt) / 1000;
+    const remaining = Math.max(0, CONFIG.gameSeconds - elapsed);
+    timeEl.textContent = Math.ceil(remaining);
+    timeFill.style.width = (remaining / CONFIG.gameSeconds * 100) + '%';
+    hud.classList.toggle('urgent', remaining <= 5);
+    if (remaining <= 0) endGame();
+  }
+
+  function startGame() {
+    ensureAudio();
+    clearTimeout(spawnTimer);
+    clearInterval(clockTimer);
+    clearHoles();
+    score = 0;
+    scoreEl.textContent = '0';
+    timeEl.textContent = CONFIG.gameSeconds;
+    timeFill.style.width = '100%';
+    hud.classList.remove('urgent');
+    renderBest();
+    state = 'playing';
+    showScreen('play');
+    startAt = performance.now();
+    clockTimer = setInterval(updateClock, 100);
+    spawnTimer = setTimeout(spawnTick, CONFIG.firstSpawnDelay);
+  }
+
+  function endGame() {
+    if (state !== 'playing') return;
+    state = 'over';
+    clearTimeout(spawnTimer);
+    clearInterval(clockTimer);
+    clearHoles();
+    hammer.classList.remove('on');
+    timeEl.textContent = '0';
+    timeFill.style.width = '0%';
+    sfx.end();
+
+    const isNewRecord = score > best;
+    if (isNewRecord) { best = score; saveBest(best); }
+    $('finalScore').textContent = score;
+    $('newRecord').hidden = !isNewRecord;
+    renderBest();
+    setTimeout(() => { if (state === 'over') showScreen('over'); }, 500);
+  }
+
+  $('btnStart').addEventListener('click', startGame);
+  $('btnAgain').addEventListener('click', startGame);
+
+  renderBest();
+  showScreen('start');
+})();
+</script>
+</body>
+</html>
